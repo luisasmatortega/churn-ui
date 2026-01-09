@@ -99,7 +99,6 @@ export default function TablaClientesRiesgo({  })
                   </div>
                 </td>
 
-                
                 <td className="p-4">
                   <div className="flex flex-col gap-1 text-slate-600">
                     <div className="flex items-center gap-1">
@@ -143,7 +142,6 @@ export default function TablaClientesRiesgo({  })
                   </div>
                 </td>
 
-
                 <td className="p-4">
                   <div className="flex items-center justify-center gap-2">
                     {/* Botón Marketing: Solo aparece con opacidad baja y resalta al hover */}
@@ -174,9 +172,6 @@ export default function TablaClientesRiesgo({  })
                     </a>
                   </div>
                 </td>
-
-
-
               </tr>
             ))}
           </tbody>

@@ -56,8 +56,15 @@ export const prediccionService = {
         { params: { page, size } }
         );
         return response.data;
+    },
+
+    // GET: ranking de clientes riesgo
+    obtenerTopRazonesChurn: async () => {
+        const response = await apiClient.get(
+        `${PREDICCION_BASE_URL}/churn/razones`
+        );
+
+        return response.data;
     }
-
-
 
 };

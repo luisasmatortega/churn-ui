@@ -1,6 +1,8 @@
 "use client"
 
-import React from "react";
+import { prediccionService } from "@/services/prediccionService";
+import React, { useState, useEffect } from "react";
+
 import {
   BarChart,
   Bar,
@@ -11,17 +13,17 @@ import {
   Cell,
 } from "recharts";
 
-const churnReasonsData = [
-  { reason: "Dias con el equipo móvil", users: 182 },
-  { reason: "Llamadas caídas", users: 156 },
-  { reason: "Antigüedad", users: 121 },
-  { reason: "Cargo recurrente", users: 98 },
-  { reason: "Perfil crediticio", users: 67 },
-  { reason: "Ingresos mensuales", users: 41 },
-];
+// const churnReasonsData = [
+//   { reason: "Dias con el equipo móvil", users: 182 },
+//   { reason: "Llamadas caídas", users: 156 },
+//   { reason: "Antigüedad", users: 121 },
+//   { reason: "Cargo recurrente", users: 98 },
+//   { reason: "Perfil crediticio", users: 67 },
+//   { reason: "Ingresos mensuales", users: 41 },
+// ];
 
-// ordenado descendente
-const data = [...churnReasonsData].sort((a, b) => b.users - a.users);
+// // ordenado descendente
+// const data = [...churnReasonsData].sort((a, b) => b.users - a.users);
 
 const COLORS = [
   "#ef4444",
@@ -32,11 +34,40 @@ const COLORS = [
   "#22c55e",
 ];
 
-export default function GraficoTopRazonesChurn() {
+export default function GraficoTopRazonesChurn() 
+{
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const total = data.reduce((acc, d) => acc + d.users, 0);
+
+  useEffect(() => {
+    const fetchRazones = async () => {
+      try {
+        const res = await prediccionService.obtenerTopRazonesChurn();
+        setData(res);
+      } catch (e) {
+        console.error("Error cargando razones de churn", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRazones();
+  }, []);
+  
+
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 h-full">
+
+      {loading && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 h-80 flex items-center justify-center">
+          <span className="text-sm text-slate-500">
+            Cargando razones de cancelación…
+          </span>
+        </div>
+      )}
     
       <div className="mb-6">
         <h3 className="font-bold text-slate-800">
