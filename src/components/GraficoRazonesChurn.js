@@ -1,7 +1,7 @@
 "use client"
 
-import { prediccionService } from "@/services/prediccionService";
-import React, { useState, useEffect } from "react";
+import { prediccionService, } from "@/services/prediccionService";
+import React, { useState, useEffect, useMemo } from "react";
 
 import {
   BarChart,
@@ -10,20 +10,9 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  LabelList,
   Cell,
 } from "recharts";
-
-// const churnReasonsData = [
-//   { reason: "Dias con el equipo móvil", users: 182 },
-//   { reason: "Llamadas caídas", users: 156 },
-//   { reason: "Antigüedad", users: 121 },
-//   { reason: "Cargo recurrente", users: 98 },
-//   { reason: "Perfil crediticio", users: 67 },
-//   { reason: "Ingresos mensuales", users: 41 },
-// ];
-
-// // ordenado descendente
-// const data = [...churnReasonsData].sort((a, b) => b.users - a.users);
 
 const COLORS = [
   "#ef4444",
@@ -39,7 +28,21 @@ export default function GraficoTopRazonesChurn()
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const total = data.reduce((acc, d) => acc + d.users, 0);
+  const total = useMemo(
+    () => data.reduce((acc, d) => acc + d.users, 0),
+    [data]
+  );
+
+  const topReason = useMemo(() => {
+    if (!data.length) return null;
+    return data.reduce((a, b) => (a.users > b.users ? a : b));
+  }, [data]);
+
+  const insightText = topReason
+  ? `"${topReason.reason}" explica el ${Math.round(
+      (topReason.users / total) * 100
+    )}% del churn total, siendo el principal factor de cancelación.`
+  : null;
 
   useEffect(() => {
     const fetchRazones = async () => {
@@ -55,19 +58,23 @@ export default function GraficoTopRazonesChurn()
 
     fetchRazones();
   }, []);
+
   
+  if (loading) 
+  {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 h-80 flex items-center justify-center">
+        <span className="text-sm text-slate-500">
+          Cargando razones de cancelación…
+        </span>
+      </div>
+    );
+  }
+
 
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 h-full">
-
-      {loading && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 h-80 flex items-center justify-center">
-          <span className="text-sm text-slate-500">
-            Cargando razones de cancelación…
-          </span>
-        </div>
-      )}
     
       <div className="mb-6">
         <h3 className="font-bold text-slate-800">
@@ -118,6 +125,14 @@ export default function GraficoTopRazonesChurn()
             />
 
             <Bar dataKey="users" radius={[0, 8, 8, 0]} barSize={18}>
+              <LabelList
+                dataKey="users"
+                position="right"
+                fontSize={11}
+                formatter={(v) =>
+                  `${Math.round((v / total) * 100)}%`
+                }
+              />
               {data.map((_, index) => (
                 <Cell key={index} fill={COLORS[index]} />
               ))}
@@ -125,6 +140,15 @@ export default function GraficoTopRazonesChurn()
           </BarChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Insight */}
+      {insightText && (
+        <div className="mt-6 pt-4 border-t border-dashed border-slate-200">
+          <p className="text-[0.625rem] text-slate-600 leading-relaxed">
+            {insightText}sdfsdf
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,16 +1,67 @@
 "use client"
 
-import GraficoPromedioAntiguedad from "@/components/GraficoPromedioAntiguedad";
-import GraficoPromedioCancelacion from "@/components/GraficoPromedioCancelacion";
-import GraficoRiesgoCancelacion from "@/components/GraficoRiesgoCancelacion";
-import { useState, useEffect } from "react";
 import ResumenCard from "@/components/ResumenCard";
-import { FileText, AlertTriangle, Info, CheckCircle2 } from "lucide-react";
-import TablaClientesRiesgo from "@/components/TablaClientesEnRiesgoDeCancelacion";
-import GraficoTopRazonesChurn from "@/components/GraficoRazonesChurn";
 import Navbar from "@/components/NavBar";
+import { useState, useEffect, useMemo } from "react";
+import { FileText, AlertTriangle, Info, CheckCircle2 } from "lucide-react";
 import { prediccionService } from "@/services/prediccionService";
+import dynamic from "next/dynamic";
 
+
+const GraficoPromedioAntiguedad = dynamic(
+  () => import("@/components/GraficoPromedioAntiguedad"),
+  { ssr: false,
+    loading: () => (
+      <div className="h-64 flex items-center justify-center text-slate-400">
+        Cargando gráfico…
+      </div>
+    ),
+   }
+);
+
+const GraficoPromedioCancelacion = dynamic(
+  () => import("@/components/GraficoPromedioCancelacion"),
+  { ssr: false, 
+    loading: () => (
+      <div className="h-64 flex items-center justify-center text-slate-400">
+        Cargando gráfico…
+      </div>
+    ),
+  }
+);
+
+const GraficoRiesgoCancelacion = dynamic(
+  () => import("@/components/GraficoRiesgoCancelacion"),
+  { ssr: false,
+    loading: () => (
+      <div className="h-64 flex items-center justify-center text-slate-400">
+        Cargando gráfico…
+      </div>
+    ), 
+  }
+);
+
+const GraficoTopRazonesChurn = dynamic(
+  () => import("@/components/GraficoRazonesChurn"),
+  { ssr: false,
+    loading: () => (
+      <div className="h-64 flex items-center justify-center text-slate-400">
+        Cargando gráfico…
+      </div>
+    ),
+  }
+);
+
+const TablaClientesRiesgo = dynamic(
+  () => import("@/components/TablaClientesEnRiesgoDeCancelacion"),
+  { ssr: false, 
+    loading: () => (
+      <div className="h-64 flex items-center justify-center text-slate-400">
+        Cargando gráfico…
+      </div>
+    ),
+  }
+);
 
 export default function estadisticasPage() 
 {
@@ -25,16 +76,12 @@ export default function estadisticasPage()
   });
 
   useEffect(() => {
-    const fetchResumen = async () => {
-      try {
-        const data = await prediccionService.obtenerResumen();
-        setResumen(data);
-      } catch (error) {
-        console.error("Error cargando resumen:", error);
-      }
-    };
-    fetchResumen();
+    prediccionService.obtenerResumen()
+      .then(setResumen)
+      .catch(err => console.error("Error:", err));
   }, []);
+
+  
 
 
   return (
@@ -60,7 +107,7 @@ export default function estadisticasPage()
           </div>
           
           <div className=" ">
-            <GraficoPromedioCancelacion resumen={resumen}/>
+            <GraficoPromedioCancelacion />
           </div>
         </div>
 

@@ -1,19 +1,16 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo, memo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Text, Legend } from 'recharts';
 import { AlertTriangle, Info, CheckCircle2 } from 'lucide-react';
 
-// const data = [
-//   { name: 'Se va', value: 303, color: '#f87171', icon: AlertTriangle, percentage: '61%' },
-//   { name: 'No se va', value: 194, color: '#4ade80', icon: CheckCircle2, percentage: '39%' },
-// ];
 
 const yAxisLabels = ['55%', '40%', '30%', '20%', '0%'];
 
-export default function GraficoRiesgoCancelacion({resumen}) {
+const GraficoRiesgoCancelacion = ({resumen}) => {
 
-  const chartData = [
+  const chartData = useMemo(() => 
+  [
     { 
       name: 'Se va', 
       value: resumen.riesgoAlto, 
@@ -28,7 +25,20 @@ export default function GraficoRiesgoCancelacion({resumen}) {
       icon: CheckCircle2, 
       percentage: resumen.porcentajeBajo 
     },
-  ];
+  ], 
+  [
+      resumen.riesgoAlto,
+      resumen.riesgoBajo,
+      resumen.porcentajeAlto,
+      resumen.porcentajeBajo,
+  ]);
+ 
+
+  const legendFormatter = useMemo(
+    () => (value) => (
+      <span className="text-slate-600 font-medium text-sm">{value}</span>
+    )
+  );
   
   return (
     <>
@@ -53,21 +63,11 @@ export default function GraficoRiesgoCancelacion({resumen}) {
               dataKey="value"
               stroke="#fff"
               strokeWidth={2}
-              label={({ cx, cy, midAngle, outerRadius, index }) => {
-                const RADIAN = Math.PI / 180;
-                const radius = outerRadius * 0.6;
-                const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                return (
-                  <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-lg font-semibold">
-                    {chartData[index].percentage}
-                  </text>
-                );
-              }}
+              label={(props) => renderLabel({ ...props, chartData })}
               labelLine={false}
             >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
+              {chartData.map((entry) => (
+                <Cell key={entry.name} fill={entry.color} />
               ))}
             </Pie>
                             
@@ -82,26 +82,58 @@ export default function GraficoRiesgoCancelacion({resumen}) {
                 justifyContent: 'center',
                 gap: 6,         
               }}
-              formatter={(value) => (
-                <span className="text-slate-600 font-medium text-sm">{value}</span>
-              )}
+              formatter={legendFormatter}
             />
           </PieChart>
         </ResponsiveContainer>
         <div className='hidden sm:block sm:absolute sm:top-0 sm:right-0 pt-3 translate-y-1/2 '>
           <div className="flex flex-col gap-3 ">
             {chartData.map((item) => (
-              <div key={item.name} className="flex items-center justify-between p-3 rounded-sm border border-slate-300 bg-slate-50 border border-slate-100">
-                <div className="flex items-center gap-2 text-xs">
-                  <item.icon size={18} style={{ color: item.color }} fill={item.color} fillOpacity={0.1} />
-                  <span className="sm:text-sm font-bold text-slate-700">{item.value}</span>
-                  <span className="text-slate-500"> {item.name}</span>
-                </div>
-              </div>
+              <RiesgoResumenItem 
+                key={item.name}
+                name={item.name}
+                value={item.value}
+                color={item.color}
+                Icon={item.icon}
+              />
             ))}
           </div>
         </div>
       </div>
     </>
   );
-}
+};
+
+
+export default memo(GraficoRiesgoCancelacion);
+
+const renderLabel = ({ cx, cy, midAngle, outerRadius, index, chartData }) => 
+  {
+    const RADIAN = Math.PI / 180;
+    const radius = outerRadius * 0.6;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="white" 
+        textAnchor="middle" 
+        dominantBaseline="central" 
+        className="text-lg font-semibold"
+      >
+        {chartData[index].percentage}
+      </text>
+    );
+  };
+
+const RiesgoResumenItem = memo(({ name, value, color, Icon }) => (
+  <div className="flex items-center justify-between p-2 md:p-3 rounded-md border border-slate-200 bg-white shadow-sm">
+    <div className="flex items-center gap-2">
+      <Icon size={18} className="shrink-0" style={{ color }} />
+      <span className="text-sm font-bold text-slate-700">{value}</span>
+      <span className="text-xs text-slate-500">{name}</span>
+    </div>
+  </div>
+));

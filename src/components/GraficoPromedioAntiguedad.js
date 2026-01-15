@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use,useEffect, useState } from "react";
+import React, { memo, useEffect, useMemo, useState } from "react";
 import { prediccionService } from "@/services/prediccionService";
 import {
   BarChart,
@@ -13,7 +13,6 @@ import {
   Cell
 } from "recharts";
 import { Zap, ShieldCheck, Clock, Users } from "lucide-react";
-
 
 
 const ICON_MAP = {
@@ -41,47 +40,62 @@ export default function GraficoPromedioAntiguedad()
       })
       .finally(() => setLoading(false));
   }, []);
+  
+  const dominantSegment = useMemo(() => {
+    if (!snapshot || !snapshot.segments) return null; // Add safety check
+    return snapshot.segments.reduce((prev, current) =>
+      prev.users > current.users ? prev : current
+    );
+  }, [snapshot]);
 
-   if (loading) {
+  const data = useMemo(() => 
+  {
+    if (!snapshot) return [];
+
+    const totalInSegments = snapshot.segments.reduce((acc, s) => acc + s.users, 0);
+
+    return snapshot.segments.map((segment) => ({
+      name: segment.label,
+      avgMonths: segment.avgMonths,
+      users: segment.users,
+      fill: COLOR_MAP[segment.key],
+      icon: ICON_MAP[segment.key],
+      key: segment.key,
+      percentage: totalInSegments > 0 
+      ? Math.round((segment.users / totalInSegments) * 100) 
+      : 0
+    }));
+
+
+  }, [snapshot]);
+     
+  const globalAvg = useMemo(() => {
+    return snapshot?.globalAvgMonths ? Number(snapshot.globalAvgMonths.toFixed(1)) : 0;
+  }, [snapshot]);
+
+
+  const insightText = useMemo(() => 
+  {
+    if (!dominantSegment) return "";
+
+    const { key, users } = dominantSegment;
+
+    if(key === "STABLE") return `La base de clientes està consolidada por el segmento de "Estables" es el más numeroso con ${users} usuarios.`;
+    if (key === "NEW") return `Fase de crecimiento: los usuarios "Nuevos" predominan, sugiriendo una captación reciente.`;
+
+    return `Base madura: el segmento de "Veteranos" lidera, indicando alta retención histórica.`;
+
+  }, [dominantSegment]);
+
+  if (loading) {
     return (
-      <div className="bg-white rounded-2xl p-6 text-sm text-slate-500">
+      <div className="bg-white rounded-2xl p-6 text-sm text-slate-500 h-64 animate-pulse">
         Cargando antigüedad de clientes…
       </div>
     );
   }
 
   if (!snapshot) return null;
-
-   const data = snapshot.segments.map((segment) => ({
-    name: segment.label,
-    avgMonths: segment.avgMonths,
-    users: segment.users,
-    fill: COLOR_MAP[segment.key],
-    icon: ICON_MAP[segment.key],
-    key: segment.key,
-  }));
-
-  const totalUsers = snapshot.totalUsers;
-  const globalAvg = snapshot.globalAvgMonths;
-
-  const dominantSegment = snapshot.segments.reduce(
-    (prev, current) =>
-      prev.users > current.users ? prev : current
-  );
-
- 
-
-  const getInsightText = () => 
-  {
-    if(dominantSegment.key === "STABLE")
-    {
-      return `La base está consolidada: el segmento de "Estables" es el más numeroso con ${dominantSegment.users} usuarios.`;
-    }
-    if (dominantSegment.key === 'NEW') {
-      return `Fase de crecimiento: los usuarios "Nuevos" predominan, lo que sugiere una captación reciente exitosa.`;
-    }
-    return `Base madura: el segmento de "Veteranos" lidera la población, indicando una alta retención histórica.`;
-  }
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 h-full">
@@ -126,21 +140,7 @@ export default function GraficoPromedioAntiguedad()
 
             <Tooltip
               cursor={{ fill: "rgba(148,163,184,0.1)" }}
-              content={({ active, payload }) => {
-                if (!active || !payload?.length) return null;
-                const d = payload[0].payload;
-
-                return (
-                  <div className="bg-sky-950 text-slate-200 p-3 rounded-xl text-xs shadow-xl">
-                    <p className="font-bold mb-1">{d.name}</p>
-                    <p>Promedio: <strong>{d.avgMonths} meses</strong></p>
-                    <p>Clientes: {d.users}</p>
-                    <p>
-                      {Math.round((d.users / totalUsers) * 100)}% de la base mensual
-                    </p>
-                  </div>
-                );
-              }}
+              content={<AntiguedadTooltip />}
             />
 
             <ReferenceLine
@@ -160,11 +160,7 @@ export default function GraficoPromedioAntiguedad()
               radius={[0, 8, 8, 0]}
               barSize={18}
             >
-            {data.map((entry, index) => (
-
-              <Cell key={`cell-${index}`} fill={entry.fill} />
- 
-            ))}
+            {data.map((entry) => <Cell key={entry.name} fill={entry.fill} /> )}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -172,46 +168,70 @@ export default function GraficoPromedioAntiguedad()
 
   
       <div className="space-y-2">
-        {data.map((item) => {
-          const diff = item.avgMonths - globalAvg;
-
-          return (
-            <div
-              key={item.name}
-              className="flex justify-between items-center text-xs text-slate-600"
-            >
-              <div className="flex items-center gap-2">
-                <item.icon size={14} className="text-slate-500" />
-                <span className="font-medium">{item.name}</span>
-              </div>
-              <div className="text-right">
-                <span className="font-bold text-slate-800">
-                  {item.avgMonths} m
-                </span>
-                <span
-                  className={`ml-2 font-bold ${
-                    diff >= 0
-                      ? "text-emerald-600"
-                      : "text-rose-600"
-                  }`}
-                >
-                  {diff >= 0 ? "+" : ""}
-                  {diff.toFixed(1)}
-                </span>
-              </div>
-            </div>
-          );
-        })}
+        {data.map((item) => (
+          <SegmentDiffItem 
+            key={item.key}
+            item={item}
+            globalAvg={globalAvg}
+          />
+        ))}
       </div>
 
       <div className="mt-6 pt-4 border-t border-dashed border-slate-200">
         <div className="flex items-start gap-2">
           <Users size={14} className="text-blue-600 mt-1" />
           <p className="text-[0.625rem] text-slate-600 leading-relaxed">
-            {getInsightText()}
+            {insightText}
           </p>
         </div>
       </div>
     </div>
   );
 }
+
+
+const SegmentDiffItem = ({ item, globalAvg }) => 
+{ 
+  const diff = item.avgMonths - globalAvg;
+          
+  return (
+    <div className="flex justify-between items-center text-xs text-slate-600">
+      <div className="flex items-center gap-2">
+        <item.icon size={14} className="text-slate-500" />
+        <span className="font-medium">{item.name}</span>
+      </div>
+      <div className="text-right">
+        <span className="font-bold text-slate-800">
+          {item.avgMonths}
+        </span>
+        <span
+          className={`ml-2 font-bold ${
+            diff >= 0
+              ? "text-emerald-600"
+              : "text-rose-600"
+          }`}
+        >
+          {diff >= 0 ? "+" : ""}
+          {diff.toFixed(1)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+const AntiguedadTooltip = memo(({ active, payload }) => 
+{
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+
+  return (
+    <div className="bg-sky-950 text-slate-200 p-3 rounded-xl text-xs shadow-xl">
+      <p className="font-bold mb-2 border-b border-slate-700 pb-1">{d.name}</p>
+      <p className="text-slate-200">Promedio: <strong>{d.avgMonths} meses</strong></p>
+      <p className="text-slate-200">Clientes: {d.users}</p>
+      <p className="text-blue-300">
+        {d.percentage}% de la base mensual
+      </p>
+    </div>
+  );
+})

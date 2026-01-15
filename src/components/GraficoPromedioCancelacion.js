@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Childrenm, useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, memo } from 'react';
 import { prediccionService } from '@/services/prediccionService';
 import {
   AreaChart,
@@ -13,49 +13,11 @@ import {
 } from 'recharts';
 
 
-const CustomTooltip = ({ active, payload, label, mode }) => 
+
+const GraficoPromedioCancelacion = () => 
 {
-  if (!active || !payload?.length) return null;
-
-  const dataTooltip = payload[0].payload;
-  
-  return (
-    <div className="bg-sky-950 p-4 rounded-xl shadow-xl text-white min-w-16 text-xs">
-      <p className="font-medium mb-3 border-b border-slate-600 pb-1 flex justify-between">
-        <span>{label}</span>
-      </p>
-      
-      <div className="space-y-2">
-        {(mode === "RISK" || mode === "DISTRIBUTION") && (
-          <div className="flex justify-between">
-            <span className="text-slate-300">Usuarios en riesgo:</span>
-            <span>{dataTooltip.churnCount}</span>
-          </div> 
-        )}
-        {(mode === "STABLE" || mode === "DISTRIBUTION") && (
-          <div className="flex justify-between">
-            <span className="text-slate-300">Usuarios estables:</span>
-            <span>{dataTooltip.noChurnCount}</span>
-          </div>
-        )}
-        <div className="flex justify-between">
-          <span className="text-slate-300">Total usuarios:</span>
-          <span>{dataTooltip.totalUsers}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-slate-300">% Cancelación:</span>
-          <span>{dataTooltip.churnPercentage}</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-
-export default function GraficoPromedioCancelacion() 
-{
-  const gradientChurnId = "churnGradient";
-  const gradientNoChurnId = "noChurnGradient";
+  const gradientChurnId = "churnGradientPromedio";
+  const gradientNoChurnId = "noChurnGradientPromedio";
 
   const [mode, setMode] = useState("RISK");
   const [refinedData, setRefinedData] = useState([]);
@@ -66,7 +28,7 @@ export default function GraficoPromedioCancelacion()
   }, []);
 
 
-  const data = refinedData.map((monthData) => (
+  const data = useMemo(() => refinedData.map(monthData => (
   {
     month: monthData.month,
     churnPercentage: monthData.seVaPercentage,
@@ -75,7 +37,13 @@ export default function GraficoPromedioCancelacion()
     // aditional derived info
     noChurnCount: monthData.totalUsers - monthData.seVaCount,
     noChurnPercentage: 100 - monthData.seVaPercentage
-  }))
+  })), [refinedData]);
+
+  // const tooltipContent = useMemo(
+  //   () => <CustomTooltip mode={mode} />,
+  //   [mode]
+  // );
+
 
 
   return (
@@ -135,32 +103,32 @@ export default function GraficoPromedioCancelacion()
             />
 
             <Tooltip
-              content={<CustomTooltip mode={mode}/>}
+              content={<CustomTooltip mode={mode} />}
               cursor={{ stroke: '#64748b', strokeDasharray: '4 4' }}
             />
 
-            {(mode === "RISK" || mode === "DISTRIBUTION") && (
-              <Area
-                type="monotone"
-                dataKey="churnPercentage"
-                name="% Cancelación"
-                stroke="#f87171"
-                fill={`url(#${gradientChurnId})`}
-                strokeWidth={2}
-              />
-            )}
+            
+            <Area hide={!(mode === "RISK" || mode === "DISTRIBUTION")} 
+              type="monotone"
+              dataKey="churnPercentage"
+              name="% Cancelación"
+              stroke="#f87171"
+              fill={`url(#${gradientChurnId})`}
+              strokeWidth={2}
+            />
 
-            {(mode === "STABLE" || mode === "DISTRIBUTION") && (
-              <Area
-                type="monotone"
-                dataKey="noChurnPercentage"
-                name="% Bajo riesgo"
-                stroke="#4ade80"
-                fill={`url(#${gradientNoChurnId})`}
-                strokeWidth={2}
-              />
 
-            )}
+           
+            <Area hide={!(mode === "STABLE" || mode === "DISTRIBUTION")}
+              type="monotone"
+              dataKey="noChurnPercentage"
+              name="% Bajo riesgo"
+              stroke="#4ade80"
+              fill={`url(#${gradientNoChurnId})`}
+              strokeWidth={2}
+            />
+
+  
 
           </AreaChart>
         </ResponsiveContainer>
@@ -180,54 +148,74 @@ export default function GraficoPromedioCancelacion()
   );
 }
 
-function LegendItem({ color, label }) {
+export default memo(GraficoPromedioCancelacion);
+
+
+const formatPct = (val) => {
+  const num = parseFloat(val);
+  return isNaN(num) ? "0.0" : num.toFixed(1);
+};
+
+const CustomTooltip = memo(({ active, payload, label, mode }) => 
+{
+  if (!active || !payload?.length) return null;
+
+  const dataTooltip = payload[0].payload;
+  
+  return (
+    <div className="bg-sky-950 w-48 p-4 rounded-xl shadow-xl text-white min-w-16 text-xs">
+      <p className="font-medium mb-3 border-b border-slate-600 pb-1 flex justify-between">
+        <span>{label}</span>
+      </p>
+      
+      <div className="space-y-2">
+        {(mode === "RISK" || mode === "DISTRIBUTION") && (
+          <div className="flex justify-between">
+            <span className="text-slate-300">Usuarios en riesgo:</span>
+            <span>{dataTooltip.churnCount}</span>
+          </div> 
+        )}
+        {(mode === "STABLE" || mode === "DISTRIBUTION") && (
+          <div className="flex justify-between">
+            <span className="text-slate-300">Usuarios estables:</span>
+            <span>{dataTooltip.noChurnCount}</span>
+          </div>
+        )}
+        <div className="flex justify-between">
+          <span className="text-slate-300">Total usuarios:</span>
+          <span>{dataTooltip.totalUsers}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-slate-300">% Cancelación:</span>
+          <span>{formatPct(dataTooltip.churnPercentage)}%</span>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+
+const LegendItem = memo(({ color, label }) => 
+{
   return (
     <div className="flex items-center gap-2 text-xs">
       <div className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: color }} />
       <span className=" text-slate-500 font-medium">{label}</span>
     </div>
   );
-}
+});
 
-const ModeButton = ({active, children, onClick}) => 
+const ModeButton = memo(({active, children, onClick}) => 
 {
   return (
     <button 
-    type="button"
-    onClick={onClick}
-    className={`px-3 py-1 text-xs font-medium rounded-md transition
-      ${active ? "bg-white shadow text-slate-900" : "text-slate-500 hover:text-slate-700"}      
-    `}
-    
+      type="button"
+      onClick={onClick}
+      className={`px-3 py-1 text-xs font-medium rounded-md transition
+        ${active ? "bg-white shadow text-slate-900" : "text-slate-500 hover:text-slate-700"}      
+      `}
     >
       {children}
     </button>
   )
-}
-
-
-
-
-
-// const refinedData = 
-// [
-//   {
-//     "month": "Julio",
-//     "averageScore": 42.5, // La probabilidad GENERAL de cancelaciòn de usuarios
-//     "seVaCount": 303,      // numero de usuarios > umbralDeRetiro
-//     "seVaPercentage": 61,  // Population Distribution (%)
-//     "totalUsers": 498
-//   },
-//   { month: "Ago", averageScore: 49.8, seVaCount: 350, seVaPercentage: 64, totalUsers: 545 },
-//   { month: "Sep", averageScore: 44.2, seVaCount: 315, seVaPercentage: 58, totalUsers: 540 },
-//   { month: "Oct", averageScore: 41.0, seVaCount: 290, seVaPercentage: 54, totalUsers: 535 },
-//   { month: "Nov", averageScore: 38.5, seVaCount: 270, seVaPercentage: 50, totalUsers: 540 },
-//   { month: "Dic", averageScore: 35.0, seVaCount: 250, seVaPercentage: 46, totalUsers: 545 },
-//   {
-//     "month": "Enero",
-//     "averageScore": 42.5,
-//     "seVaCount": 303,     
-//     "seVaPercentage": 61, 
-//     "totalUsers": 498
-//   },
-// ]
+});
